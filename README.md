@@ -1,23 +1,28 @@
-# offline-worker
+# pwa-worker
 
-## installation
+## 1. installation
 
 ```bash
-$ npm i offline-worker --save-dev
-$ cp node_modules/offline-worker/worker.js public
+$ npm i pwa-worker --save-dev
 ```
 
-where public is your public/static directory
+## 2. copy worker
 
-then in your front-end code use:
+assuming `public` is your folder with static files
+
+```bash
+$ cp node_modules/pwa-worker/worker.js public
+```
+
+## 3. usage in code
 
 ```js
-import register from 'offline-worker'
+import register from 'pwa-worker'
 
 register()
 ```
 
-## result
+## 4. result
 
 - your service worker makes your page run offline
 
