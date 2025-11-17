@@ -12,76 +12,45 @@ self.addEventListener('install', (event) => {
   )
 })
 
-self.addEventListener('activate', (event) => {
+self.addEventListener('activate', () => {
   clients.claim()
 })
 
-// Helpers
-function fromCache(request) {
-  return caches
-    .open(cacheName)
-    .then((cache) => cache.match(request, { ignoreSearch: true }))
+async function saveResponseToCache(request, clonedResponse) {
+  const cache = await caches.open(cacheName)
+  cache.put(request, clonedResponse)
 }
 
-function updateCache(request, response) {
-  if (request.method.toLowerCase() !== 'get') return
+async function getFromCache(request) {
+  const cache = await caches.open(cacheName)
+  return await cache.match(request, { ignoreSearch: true })
+}
 
-  const clone = response.clone()
-  return caches.open(cacheName).then((cache) => {
-    cache.put(request, clone)
-  })
+function isSameHost(url, host) {
+  const regexp = new RegExp(`(\.?${host}\.?)`)
+  return !!url.match(regexp)
+}
+
+async function getResponse(request) {
+  try {
+    const fresh = await fetch(request.url)
+    if (fresh.status === 200) {
+      if (request.method.toLowerCase() === 'get') {
+        const clonedResponse = fresh.clone()
+        await saveResponseToCache(request, clonedResponse)
+      }
+      return fresh
+    }
+  } catch (error) {
+    console.info(error)
+  }
+
+  return await getFromCache(request)
 }
 
 // Fetch handler
 self.addEventListener('fetch', (event) => {
-  const { request } = event
-  const { url } = request
-
-  // Filter out requests you don't want to cache
-  if (!url.match(/^https:\/\/?/) || url.match(/\/socket\.io\//)) {
-    return
+  if (isSameHost(event.request.url, self.location.host)) {
+    event.respondWith(getResponse(event.request))
   }
-
-  const mode = url.startsWith(self.location.origin) ? 'same-origin' : 'cors'
-  const credentials = mode === 'cors' ? 'omit' : 'same-origin'
-
-  event.respondWith(
-    new Promise((resolve) => {
-      fetch(url, { mode, credentials })
-        .then((freshResponse) => {
-          if (freshResponse.status === 200) {
-            // If response is OK, save it to cache and return it
-            updateCache(request, freshResponse)
-            resolve(freshResponse)
-          } else {
-            // If status != 200, try getting it from cache
-            fromCache(request).then((cached) => {
-              if (cached) {
-                // If found in cache, return it
-                resolve(cached)
-              } else {
-                // If not in cache, return the original network response
-                resolve(freshResponse)
-              }
-            })
-          }
-        })
-        .catch(() => {
-          // When fetch throws (e.g. offline), try getting it from cache
-          fromCache(request).then((cached) => {
-            if (cached) {
-              resolve(cached)
-            } else {
-              // If also not in cache – return a simple 503 Response
-              resolve(
-                new Response('Offline and not cached', {
-                  status: 503,
-                  headers: { 'Content-Type': 'text/plain' }
-                })
-              )
-            }
-          })
-        })
-    })
-  )
 })
