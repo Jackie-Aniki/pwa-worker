@@ -25,9 +25,11 @@ function fromCache(request) {
 
 function updateCache(request, response) {
   if (request.method.toLowerCase() !== 'get') return
-  return caches
-    .open(cacheName)
-    .then((cache) => cache.put(request, response.clone()))
+
+  const clone = response.clone()
+  return caches.open(cacheName).then((cache) => {
+    cache.put(request, clone)
+  })
 }
 
 // Fetch handler
