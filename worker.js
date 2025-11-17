@@ -26,9 +26,8 @@ async function getFromCache(request) {
   return await cache.match(request, { ignoreSearch: true })
 }
 
-function isSameHost(url, host) {
-  const regexp = new RegExp(`(\.?${host}\.?)`)
-  return !!url.match(regexp)
+function isSameOrigin(url, host) {
+  return url.startsWith(origin)
 }
 
 async function getResponse(request) {
@@ -50,7 +49,7 @@ async function getResponse(request) {
 
 // Fetch handler
 self.addEventListener('fetch', (event) => {
-  if (isSameHost(event.request.url, self.location.host)) {
+  if (isSameOrigin(event.request.url, self.location.origin)) {
     event.respondWith(getResponse(event.request))
   }
 })
